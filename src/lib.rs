@@ -24,14 +24,20 @@ pub struct Spectator;
 /// A `Plugin` for spectating your scene.
 pub struct SpectatorPlugin;
 
+/// A system set that contains the spectator update system.
+#[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
+pub struct SpectatorSystemSet;
+
 impl Plugin for SpectatorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpectatorSettings>();
 
+        app.configure_set(Update, SpectatorSystemSet);
+
         #[cfg(feature = "init")]
         app.add_systems(PostStartup, spectator_init);
 
-        app.add_systems(Update, spectator_update);
+        app.add_systems(Update, spectator_update.in_set(SpectatorSystemSet));
     }
 }
 
