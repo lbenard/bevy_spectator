@@ -32,7 +32,7 @@ impl Plugin for SpectatorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpectatorSettings>();
 
-        app.configure_set(Update, SpectatorSystemSet);
+        app.configure_sets(Update, SpectatorSystemSet);
 
         #[cfg(feature = "init")]
         app.add_systems(PostStartup, spectator_init);
