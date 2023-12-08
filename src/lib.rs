@@ -5,6 +5,8 @@ use bevy::{
     prelude::*,
     window::{CursorGrabMode, PrimaryWindow},
 };
+#[cfg(feature = "egui")]
+use bevy_egui::EguiContexts;
 
 /// A marker `Component` for spectating cameras.
 ///
@@ -73,6 +75,7 @@ fn spectator_update(
     mut windows: Query<(&mut Window, Option<&PrimaryWindow>)>,
     mut camera_transforms: Query<&mut Transform, With<Spectator>>,
     mut focus: Local<bool>,
+    #[cfg(feature = "egui")] mut egui: EguiContexts,
 ) {
     let Some(camera_id) = settings.active_spectator else {
         motion.clear();
@@ -120,6 +123,15 @@ fn spectator_update(
     if keys.just_pressed(KeyCode::Escape) {
         set_focus(false);
     } else if buttons.just_pressed(MouseButton::Left) {
+        #[cfg(feature = "egui")]
+        {
+            let _ = egui.ctx_mut().wants_pointer_input(); // for some reason, the result is wrong on the first call
+            if !egui.ctx_mut().wants_pointer_input() {
+                set_focus(true)
+            }
+        }
+
+        #[cfg(not(feature = "egui"))]
         set_focus(true);
     }
 
