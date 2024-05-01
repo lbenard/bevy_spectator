@@ -68,8 +68,8 @@ fn spectator_init(
 #[allow(clippy::too_many_arguments)]
 fn spectator_update(
     time: Res<Time>,
-    keys: Res<Input<KeyCode>>,
-    buttons: Res<Input<MouseButton>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    buttons: Res<ButtonInput<MouseButton>>,
     mut motion: EventReader<MouseMotion>,
     mut settings: ResMut<SpectatorSettings>,
     mut windows: Query<(&mut Window, Option<&PrimaryWindow>)>,
@@ -112,12 +112,14 @@ fn spectator_update(
 
     let mut set_focus = |focused: bool| {
         *focus = focused;
-        let grab_mode = match focused {
-            true => CursorGrabMode::Confined,
-            false => CursorGrabMode::None,
-        };
-        window.cursor.grab_mode = grab_mode;
-        window.cursor.visible = !focused;
+        if !settings.orthographic {
+            let grab_mode = match focused {
+                true => CursorGrabMode::Confined,
+                false => CursorGrabMode::None,
+            };
+            window.cursor.grab_mode = grab_mode;
+            window.cursor.visible = !focused;
+        }
     };
 
     if keys.just_pressed(KeyCode::Escape) {
@@ -135,9 +137,10 @@ fn spectator_update(
         set_focus(true);
     }
 
-    if *focus {
+    // When in orthographic mode, mouse capturing is disabled. Movement should therefore always be enabled.
+    if *focus || settings.orthographic {
         // rotation
-        {
+        if !settings.orthographic {
             let mouse_delta = {
                 let mut total = Vec2::ZERO;
                 for d in motion.read() {
@@ -152,7 +155,7 @@ fn spectator_update(
             let mut dof: Vec3 = camera_transform.rotation.to_euler(EulerRot::YXZ).into();
 
             dof.x += mouse_x;
-            // At 90 degrees, yaw gets misinterpeted as roll. Making 89 the limit fixes that.
+            // At 90 degrees, yaw gets misinterpreted as roll. Making 89 the limit fixes that.
             dof.y = (dof.y + mouse_y).clamp(-89f32.to_radians(), 89f32.to_radians());
             dof.z = 0f32;
 
@@ -161,20 +164,43 @@ fn spectator_update(
 
         // translation
         {
-            let forward = if keys.pressed(KeyCode::W) { 1f32 } else { 0f32 };
-            let backward = if keys.pressed(KeyCode::S) { 1f32 } else { 0f32 };
-            let right = if keys.pressed(KeyCode::D) { 1f32 } else { 0f32 };
-            let left = if keys.pressed(KeyCode::A) { 1f32 } else { 0f32 };
-            let up = if keys.pressed(KeyCode::Space) {
+            let forward = if keys.pressed(KeyCode::KeyW) {
                 1f32
             } else {
                 0f32
             };
-            let down = if keys.pressed(KeyCode::ControlLeft) {
+
+            let backward = if keys.pressed(KeyCode::KeyS) {
                 1f32
             } else {
                 0f32
             };
+
+            let right = if keys.pressed(KeyCode::KeyD) {
+                1f32
+            } else {
+                0f32
+            };
+
+            let left = if keys.pressed(KeyCode::KeyA) {
+                1f32
+            } else {
+                0f32
+            };
+
+            let up_cond = if !settings.orthographic {
+                keys.pressed(KeyCode::Space)
+            } else {
+                keys.pressed(KeyCode::KeyW)
+            };
+            let up = if up_cond { 1f32 } else { 0f32 };
+
+            let down_cond = if !settings.orthographic {
+                keys.pressed(KeyCode::ControlLeft)
+            } else {
+                keys.pressed(KeyCode::KeyS)
+            };
+            let down = if down_cond { 1f32 } else { 0f32 };
 
             let speed = if keys.pressed(KeyCode::ShiftLeft) {
                 settings.alt_speed
@@ -182,15 +208,19 @@ fn spectator_update(
                 settings.base_speed
             };
 
-            let delta_axial = (forward - backward) * speed;
+            let delta_axial = if settings.orthographic {
+                0.0
+            } else {
+                (forward - backward) * speed
+            };
             let delta_lateral = (right - left) * speed;
             let delta_vertical = (up - down) * speed;
 
-            let mut forward = camera_transform.forward();
+            let mut forward = *camera_transform.forward();
             forward.y = 0f32;
             forward = forward.normalize_or_zero(); // fly fast even when look down/up
 
-            let mut right = camera_transform.right();
+            let mut right = *camera_transform.right();
             right.y = 0f32; // more of a sanity check
             let up = Vec3::Y;
 
@@ -232,6 +262,10 @@ pub struct SpectatorSettings {
     ///
     /// Use this to control how fast the [`Spectator`] turns when you move the mouse.
     pub sensitivity: f32,
+    /// Use a control scheme more fit for orthographic (2D) rendering
+    ///
+    /// Disables mouse capturing and hiding, prevents moving along z-axis and uses W and S for y-axis movement
+    pub orthographic: bool,
 }
 
 impl Default for SpectatorSettings {
@@ -242,6 +276,7 @@ impl Default for SpectatorSettings {
             base_speed: 10.0,
             alt_speed: 50.0,
             sensitivity: 0.001,
+            orthographic: false,
         }
     }
 }
