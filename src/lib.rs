@@ -6,7 +6,7 @@ use bevy::{
     window::{CursorGrabMode, PrimaryWindow},
 };
 #[cfg(feature = "egui")]
-use bevy_egui::EguiContexts;
+use bevy_egui::{EguiContexts, EguiSet};
 
 /// A marker `Component` for spectating cameras.
 ///
@@ -39,7 +39,16 @@ impl Plugin for SpectatorPlugin {
         #[cfg(feature = "init")]
         app.add_systems(PostStartup, spectator_init);
 
-        app.add_systems(Update, spectator_update.in_set(SpectatorSystemSet));
+        #[cfg(feature = "egui")]
+        app.add_systems(
+            PreUpdate,
+            spectator_update
+                .in_set(SpectatorSystemSet)
+                .before(EguiSet::ProcessInput),
+        );
+
+        #[cfg(not(feature = "egui"))]
+        app.add_systems(PreUpdate, spectator_update.in_set(SpectatorSystemSet));
     }
 }
 
