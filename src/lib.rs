@@ -126,8 +126,8 @@ fn spectator_update(
                 true => CursorGrabMode::Confined,
                 false => CursorGrabMode::None,
             };
-            window.cursor.grab_mode = grab_mode;
-            window.cursor.visible = !focused;
+            window.cursor_options.grab_mode = grab_mode;
+            window.cursor_options.visible = !focused;
         }
     };
 
@@ -235,7 +235,7 @@ fn spectator_update(
 
             let result = forward * delta_axial + right * delta_lateral + up * delta_vertical;
 
-            camera_transform.translation += result * time.delta_seconds();
+            camera_transform.translation += result * time.delta_secs();
         }
     }
 
