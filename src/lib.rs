@@ -6,7 +6,7 @@ use bevy::{
     window::{CursorGrabMode, PrimaryWindow},
 };
 #[cfg(feature = "egui")]
-use bevy_egui::{EguiContexts, EguiSet};
+use bevy_egui::{EguiContexts, EguiPreUpdateSet};
 
 /// A marker `Component` for spectating cameras.
 ///
@@ -44,7 +44,7 @@ impl Plugin for SpectatorPlugin {
             PreUpdate,
             spectator_update
                 .in_set(SpectatorSystemSet)
-                .before(EguiSet::ProcessInput),
+                .before(EguiPreUpdateSet::ProcessInput),
         );
 
         #[cfg(not(feature = "egui"))]
@@ -60,7 +60,7 @@ fn spectator_init(
     use bevy::ecs::query::QuerySingleError;
 
     if settings.active_spectator.is_none() {
-        settings.active_spectator = match cameras.get_single() {
+        settings.active_spectator = match cameras.single() {
             Ok(a) => Some(a),
             Err(QuerySingleError::NoEntities(_)) => {
                 warn!("Failed to find a Spectator; Active camera will remain unset.");
